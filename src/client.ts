@@ -101,12 +101,19 @@ export const confirmAge = async (): Promise<void> => {
   }
 };
 
+const BODY_SELECTORS = [
+  "#user-submitted-body",
+  "#story-foreword",
+  "#story-description",
+  "#post-react",
+];
+
 export const fetchPage = async (path: string): Promise<string> => {
   const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
   await gotoPage(url);
 
   try {
-    await page.waitForSelector("#user-submitted-body", { timeout: 10000 });
+    await page.waitForSelector(BODY_SELECTORS.join(", "), { timeout: 10000 });
   } catch {
     // Not a chapter page or different structure
   }

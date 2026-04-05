@@ -1,8 +1,9 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import epubModule from "epub-gen-memory";
+import type { Options, Content } from "epub-gen-memory";
 
-type EpubFn = (options: { title: string; author: string }, chapters: { title: string; content: string }[]) => Promise<Buffer>;
+type EpubFn = (options: Options, content: Content) => Promise<Buffer>;
 const mod = epubModule as unknown as { default?: EpubFn } | EpubFn;
 const epub: EpubFn = typeof mod === "function" ? mod : (mod.default as EpubFn);
 import type { StoryMeta, ChapterContent } from "./parser.js";

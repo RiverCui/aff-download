@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { writeFile, mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { program } from "commander";
 import { initBrowser, login, confirmAge, fetchPage, closeBrowser, cleanBrowserData, delay } from "./client.js";
 import { parseStoryPage, parseChapterPage } from "./parser.js";
@@ -13,14 +15,23 @@ const extractStoryId = (url: string): string => {
   return match[1];
 };
 
+const saveDebugHtml = async (storyId: string, name: string, html: string): Promise<void> => {
+  const dir = join("debug", storyId);
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, `${name}.html`), html, "utf-8");
+};
+
 const downloadStory = async (
   url: string,
   format: "epub" | "txt",
+  debug: boolean,
 ): Promise<void> => {
   const storyId = extractStoryId(url);
   console.log(`\nFetching story ${storyId}...`);
 
   const storyHtml = await fetchPage(`/story/view/${storyId}`);
+  if (debug) await saveDebugHtml(storyId, "story-page", storyHtml);
+
   const { meta, chapters } = parseStoryPage(storyHtml);
 
   console.log(`Title: ${meta.title}`);
@@ -43,11 +54,13 @@ const downloadStory = async (
     let content = parseChapterPage(chapterHtml);
 
     if (!content.text) {
+      if (debug) await saveDebugHtml(storyId, `chapter-${i}-empty`, chapterHtml);
       console.warn(`    ⚠ Empty content, retrying...`);
       await delay(3000);
       chapterHtml = await fetchPage(ch.url);
       content = parseChapterPage(chapterHtml);
       if (!content.text) {
+        if (debug) await saveDebugHtml(storyId, `chapter-${i}-retry`, chapterHtml);
         console.warn(`    ⚠ Still empty after retry`);
         emptyCount++;
       }
@@ -78,6 +91,7 @@ const main = async (): Promise<void> => {
     .argument("<urls...>", "Story URLs to download")
     .option("-f, --format <format>", "Output format: epub (default) or txt", "epub")
     .option("--clean", "Clear saved browser data before running")
+    .option("--debug", "Save raw HTML files for debugging")
     .parse();
 
   const urls = program.args;
@@ -108,7 +122,7 @@ const main = async (): Promise<void> => {
 
     for (const url of urls) {
       try {
-        await downloadStory(url, format);
+        await downloadStory(url, format, !!opts.debug);
       } catch (err) {
         console.error(
           `Failed to download ${url}:`,
